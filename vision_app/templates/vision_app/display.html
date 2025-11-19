@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Answers</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .result-box {
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid #333;
+            width: 90vw;
+            max-width: 800px;
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .result-content {
+            white-space: pre-wrap;
+            font-size: 32px;
+            line-height: 1.4;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: bold;
+        }
+        .timestamp {
+            color: #888;
+            font-size: 18px;
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="result-box">
+        <div id="result" class="result-content">
+            📱 Point camera device at questions
+            Answers will appear here automatically
+        </div>
+        <div id="timestamp" class="timestamp"></div>
+    </div>
+
+    <script>
+        let lastUpdateTime = null;
+
+        async function fetchLatestResult() {
+            try {
+                const response = await fetch('/api/latest/');
+                const data = await response.json();
+                updateDisplay(data);
+            } catch (error) {
+                console.error('Failed to fetch result:', error);
+            }
+        }
+
+        function updateDisplay(data) {
+            const result = document.getElementById('result');
+            const timestamp = document.getElementById('timestamp');
+            
+            if (data.last_update !== lastUpdateTime) {
+                result.textContent = data.latest_result;
+                lastUpdateTime = data.last_update;
+                
+                if (data.last_update) {
+                    const date = new Date(data.last_update * 1000);
+                    timestamp.textContent = 'Updated: ' + date.toLocaleTimeString();
+                }
+                
+                if (data.active) {
+                    result.classList.add('pulse');
+                } else {
+                    result.classList.remove('pulse');
+                }
+            }
+        }
+
+        function startPolling() {
+            fetchLatestResult();
+            setInterval(fetchLatestResult, 2000);
+        }
+
+        startPolling();
+    </script>
+</body>
+</html>

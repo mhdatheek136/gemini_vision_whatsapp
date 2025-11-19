@@ -1,0 +1,7 @@
+Django
+google-generativeai
+pillow
+requests
+python-dotenv
+gunicorn
+whitenoise
