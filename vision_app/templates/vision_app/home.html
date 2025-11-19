@@ -171,7 +171,7 @@
                 if (data.status === 'success') {
                     sessionActive = true;
                     updateUI();
-                    captureInterval = setInterval(captureFrame, 10000);
+                    captureInterval = setInterval(captureFrame, 20000);
                     setTimeout(captureFrame, 1000); // First capture immediately
                 }
             } catch (error) {

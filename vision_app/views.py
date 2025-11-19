@@ -39,21 +39,22 @@ class GeminiVisionService:
             model = genai.GenerativeModel('gemini-2.5-flash')
             
             prompt = """
-            Analyze this image carefully:
+            Carefully analyze this image and focus **only on the Question** displayed on the screen. 
+            Ignore any background text, images, decorations, or other irrelevant content.
 
-            If there is a clear question, math problem, or text requiring an answer:
+            Instructions:
             1. If a question number is visible, put only the question number in the Q field.
             2. If no question number is visible, provide a very short summary of the question (2-5 words) in the Q field.
             3. Provide only the final answer in the A field (as per the MCQ answer).
 
-            If no question is visible:
+            If no MCQ question is visible:
             - Simply say "No question detected" in Q and "N/A" in A.
 
-            Format your response as:
+            Format your response exactly as:
             Q: [question number or short summary or "No question detected"]
             A: [final answer or "N/A"]
             """
-            
+
             # Prepare the image for the API
             image_part = {
                 "mime_type": "image/jpeg",
