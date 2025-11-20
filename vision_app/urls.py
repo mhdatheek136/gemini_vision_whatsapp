@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/upload/', views.upload_frame, name='upload_frame'),
     path('api/status/', views.session_status, name='session_status'),
     path('api/latest/', views.get_latest_result, name='get_latest_result'),
+    path('api/update_config/', views.update_config, name='update_config'),  # New config endpoint
 ]

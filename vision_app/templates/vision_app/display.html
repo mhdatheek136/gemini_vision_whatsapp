@@ -38,6 +38,14 @@
             text-align: center;
             font-weight: bold;
         }
+        .frame-info {
+            color: #69f0ae;
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
         .timestamp {
             color: #888;
             font-size: 18px;
@@ -45,6 +53,23 @@
             margin-top: 20px;
             padding-top: 20px;
             border-top: 1px solid #333;
+        }
+        .session-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .session-active {
+            background: #1b5e20;
+            color: #69f0ae;
+        }
+        .session-inactive {
+            background: #b71c1c;
+            color: #ff8a80;
         }
         .pulse {
             animation: pulse 2s infinite;
@@ -57,7 +82,14 @@
     </style>
 </head>
 <body>
+    <div id="sessionStatus" class="session-status session-inactive">
+        ❌ INACTIVE
+    </div>
+    
     <div class="result-box">
+        <div id="frameInfo" class="frame-info">
+            Frame: 0 | Processed: 0
+        </div>
         <div id="result" class="result-content">
             📱 Point camera device at questions
             Answers will appear here automatically
@@ -74,26 +106,38 @@
                 const data = await response.json();
                 updateDisplay(data);
             } catch (error) {
-                console.error('Failed to fetch result:', error);
+                console.error('Failed to fetch result (will retry):', error);
             }
         }
 
         function updateDisplay(data) {
             const result = document.getElementById('result');
             const timestamp = document.getElementById('timestamp');
+            const frameInfo = document.getElementById('frameInfo');
+            const sessionStatus = document.getElementById('sessionStatus');
             
             if (data.last_update !== lastUpdateTime) {
+                // Update result
                 result.textContent = data.latest_result;
                 lastUpdateTime = data.last_update;
                 
+                // Update frame information
+                frameInfo.textContent = `Frame: ${data.frame_number} | Processed: ${data.processed_count}`;
+                
+                // Update timestamp
                 if (data.last_update) {
                     const date = new Date(data.last_update * 1000);
                     timestamp.textContent = 'Updated: ' + date.toLocaleTimeString();
                 }
                 
+                // Update session status
                 if (data.active) {
+                    sessionStatus.textContent = '✅ ACTIVE';
+                    sessionStatus.className = 'session-status session-active';
                     result.classList.add('pulse');
                 } else {
+                    sessionStatus.textContent = '❌ INACTIVE';
+                    sessionStatus.className = 'session-status session-inactive';
                     result.classList.remove('pulse');
                 }
             }
@@ -101,10 +145,11 @@
 
         function startPolling() {
             fetchLatestResult();
-            setInterval(fetchLatestResult, 2000);
+            setInterval(fetchLatestResult, 2000); // Poll every 2 seconds
         }
 
-        startPolling();
+        // Start polling when page loads
+        document.addEventListener('DOMContentLoaded', startPolling);
     </script>
 </body>
 </html>

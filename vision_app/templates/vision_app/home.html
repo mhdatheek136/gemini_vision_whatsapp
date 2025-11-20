@@ -35,6 +35,7 @@
         }
         .start-btn:disabled {
             background: #555;
+            cursor: not-allowed;
         }
         .end-btn {
             background: #ff4444;
@@ -42,6 +43,7 @@
         }
         .end-btn:disabled {
             background: #555;
+            cursor: not-allowed;
         }
         .status {
             padding: 15px;
@@ -58,6 +60,10 @@
         .inactive {
             background: #b71c1c;
             color: #ff8a80;
+        }
+        .recovering {
+            background: #ff9800;
+            color: white;
         }
         video, canvas {
             width: 100%;
@@ -84,98 +90,454 @@
             margin: 10px 0;
             font-weight: bold;
         }
+        .config-panel {
+            background: #3d3d3d;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .config-item {
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="number"], select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background: #2d2d2d;
+            color: white;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .error-message {
+            color: #ff6b6b;
+            background: #4a1c1c;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+        .camera-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .camera-active {
+            background: #1b5e20;
+            color: #69f0ae;
+        }
+        .camera-error {
+            background: #b71c1c;
+            color: #ff8a80;
+        }
+        .camera-recovering {
+            background: #ff9800;
+            color: white;
+        }
+        .quality-indicator {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .hd-badge {
+            background: #2196F3;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📷 Gemini Vision - Camera</h1>
-        <p>Take pictures of questions, get instant AI answers on another device</p>
+        <h1>📷 Gemini Vision - Camera <span class="hd-badge">HD</span></h1>
+        <p>Take high-quality pictures of questions, get accurate AI answers on another device</p>
         
         <a href="/display/" class="display-link" target="_blank">
             📱 Open Display on Another Device
         </a>
         
+        <div class="config-panel">
+            <h3>Configuration</h3>
+            <div class="config-item">
+                <label for="captureInterval">Capture Interval (seconds):</label>
+                <input type="number" id="captureInterval" min="2" max="60" value="10">
+            </div>
+            <div class="config-item">
+                <label for="testMode">Test Mode (Skip AI calls):</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="testMode">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="config-item">
+                <label for="quality">Image Quality:</label>
+                <select id="quality">
+                    <option value="0.7">Good (70%) - Faster</option>
+                    <option value="0.85" selected>High (85%) - Balanced</option>
+                    <option value="0.95">Excellent (95%) - Best Quality</option>
+                    <option value="1.0">Maximum (100%) - Large Files</option>
+                </select>
+            </div>
+            <button class="btn" onclick="updateConfig()" style="background: #ff9800;">Update Config</button>
+        </div>
+        
+        <div id="cameraStatus" class="camera-status camera-active">
+            ✅ Camera Active - HD Ready
+        </div>
+        
         <div id="status" class="status inactive">
             ❌ Session Inactive
         </div>
         
+        <div class="error-message" id="errorMessage"></div>
+        
         <div>
-            <button class="btn start-btn" onclick="startSession()">▶ Start Session</button>
-            <button class="btn end-btn" onclick="endSession()" disabled>⏹ End Session</button>
+            <button class="btn start-btn" onclick="startSession()" id="startBtn">▶ Start Session</button>
+            <button class="btn end-btn" onclick="endSession()" id="endBtn" disabled>⏹ End Session</button>
         </div>
         
         <div class="stats">
-            <strong>Frames Processed:</strong> <span id="count">0</span>
+            <strong>Frames Processed:</strong> <span id="count">0</span><br>
+            <strong>Total Frames:</strong> <span id="totalFrames">0</span><br>
+            <strong>Mode:</strong> <span id="modeIndicator">Real</span><br>
+            <strong>Camera Status:</strong> <span id="cameraState">Active</span><br>
+            <strong>Resolution:</strong> <span id="resolutionInfo">Detecting...</span>
         </div>
         
         <div>
-            <h3>Camera Feed</h3>
+            <h3>Camera Feed <span id="qualityBadge" class="hd-badge">HD</span></h3>
             <video id="video" autoplay playsinline></video>
             <canvas id="canvas" style="display:none"></canvas>
+            <div id="qualityInfo" class="quality-indicator"></div>
         </div>
     </div>
 
     <script>
+        // Global variables
         let sessionActive = false;
         let captureInterval;
+        let cameraStream = null;
+        let cameraRestartAttempts = 0;
+        const MAX_CAMERA_RESTART_ATTEMPTS = 3;
+        let currentCaptureInterval = 20;
+        let currentQuality = 0.85; // Default to high quality
+        
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        // Start camera
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
-                video.srcObject = stream;
-            } catch (err) {
-                alert('Camera error: ' + err.message);
+        // HD Camera constraints - prioritize high resolution
+        const HD_CONSTRAINTS = {
+            video: {
+                facingMode: 'environment',
+                // Priority: Try for highest available resolution
+                width: { ideal: 1920, min: 1280 },
+                height: { ideal: 1080, min: 720 },
+                frameRate: { ideal: 30, min: 15 },
+                // Additional quality settings
+                aspectRatio: { ideal: 16/9 }
+            }
+        };
+
+        // Fallback constraints if HD not available
+        const FALLBACK_CONSTRAINTS = {
+            video: {
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        };
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Update camera status display
+        function updateCameraStatus(status, message = '') {
+            const cameraStatus = document.getElementById('cameraStatus');
+            const cameraState = document.getElementById('cameraState');
+            
+            switch(status) {
+                case 'active':
+                    cameraStatus.textContent = '✅ Camera Active - HD Ready' + (message ? ` (${message})` : '');
+                    cameraStatus.className = 'camera-status camera-active';
+                    cameraState.textContent = 'Active';
+                    break;
+                case 'error':
+                    cameraStatus.textContent = '❌ Camera Error: ' + message;
+                    cameraStatus.className = 'camera-status camera-error';
+                    cameraState.textContent = 'Error';
+                    break;
+                case 'recovering':
+                    cameraStatus.textContent = '🔄 Camera Recovering... ' + message;
+                    cameraStatus.className = 'camera-status camera-recovering';
+                    cameraState.textContent = 'Recovering';
+                    break;
             }
         }
 
-        // Capture and upload frame
-        function captureFrame() {
-            if (!sessionActive) return;
-
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
+        // Update resolution information
+        function updateResolutionInfo() {
+            const resolutionInfo = document.getElementById('resolutionInfo');
+            const qualityBadge = document.getElementById('qualityBadge');
+            const qualityInfo = document.getElementById('qualityInfo');
             
-            canvas.toBlob(async (blob) => {
-                const formData = new FormData();
-                formData.append('image', blob);
+            if (video.videoWidth && video.videoHeight) {
+                const resolution = `${video.videoWidth}×${video.videoHeight}`;
+                resolutionInfo.textContent = resolution;
                 
-                try {
-                    const response = await fetch('/api/upload/', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    const data = await response.json();
-                    if (data.status === 'success') {
-                        document.getElementById('count').textContent = data.processed_count;
-                    }
-                } catch (error) {
-                    console.error('Upload failed:', error);
+                // Determine quality level
+                if (video.videoWidth >= 1920 || video.videoHeight >= 1080) {
+                    qualityBadge.textContent = 'Full HD';
+                    qualityInfo.textContent = `Full HD quality (${resolution}) - Optimal for text recognition`;
+                } else if (video.videoWidth >= 1280 || video.videoHeight >= 720) {
+                    qualityBadge.textContent = 'HD';
+                    qualityInfo.textContent = `HD quality (${resolution}) - Good for text recognition`;
+                } else {
+                    qualityBadge.textContent = 'SD';
+                    qualityInfo.textContent = `Standard quality (${resolution}) - May affect accuracy`;
                 }
-            }, 'image/jpeg', 0.8);
+            } else {
+                resolutionInfo.textContent = 'Detecting...';
+                qualityInfo.textContent = 'Waiting for camera feed...';
+            }
         }
 
-        // Session control
+        // Enhanced camera start with HD priority
+        async function startCamera() {
+            try {
+                // Stop existing stream if any
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                }
+                
+                let stream;
+                
+                // Try HD constraints first
+                try {
+                    console.log('Attempting HD camera...');
+                    stream = await navigator.mediaDevices.getUserMedia(HD_CONSTRAINTS);
+                    console.log('HD camera successful');
+                } catch (hdError) {
+                    console.log('HD camera failed, trying fallback...', hdError);
+                    // Fallback to lower resolution
+                    stream = await navigator.mediaDevices.getUserMedia(FALLBACK_CONSTRAINTS);
+                    console.log('Fallback camera successful');
+                }
+                
+                video.srcObject = stream;
+                cameraStream = stream;
+                cameraRestartAttempts = 0;
+                
+                // Wait for video metadata to load
+                video.addEventListener('loadedmetadata', function() {
+                    updateResolutionInfo();
+                });
+                
+                // Add event listeners to detect camera disconnection
+                stream.getTracks().forEach(track => {
+                    track.addEventListener('ended', handleCameraDisconnect);
+                });
+                
+                // Update resolution info after a short delay to ensure video is ready
+                setTimeout(updateResolutionInfo, 1000);
+                
+                updateCameraStatus('active');
+                return true;
+                
+            } catch (err) {
+                console.error('Camera error:', err);
+                updateCameraStatus('error', err.message);
+                return false;
+            }
+        }
+
+        // Handle camera disconnection
+        function handleCameraDisconnect() {
+            console.log('Camera stream disconnected');
+            updateCameraStatus('error', 'Camera disconnected');
+            
+            // Only attempt recovery if session is active
+            if (sessionActive) {
+                attemptCameraRecovery();
+            }
+        }
+
+        // Attempt to recover camera with retry logic
+        async function attemptCameraRecovery() {
+            if (cameraRestartAttempts >= MAX_CAMERA_RESTART_ATTEMPTS) {
+                showError('Camera unavailable after multiple attempts. Please refresh page and grant camera permission again.');
+                return;
+            }
+            
+            cameraRestartAttempts++;
+            const attemptInfo = `(Attempt ${cameraRestartAttempts}/${MAX_CAMERA_RESTART_ATTEMPTS})`;
+            console.log(`Attempting camera recovery ${attemptInfo}`);
+            
+            updateCameraStatus('recovering', attemptInfo);
+            
+            // Wait before retry with increasing delay
+            const retryDelay = 2000 * cameraRestartAttempts;
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            
+            const success = await startCamera();
+            if (success) {
+                console.log('Camera recovery successful');
+            } else if (cameraRestartAttempts < MAX_CAMERA_RESTART_ATTEMPTS) {
+                // Schedule next retry
+                setTimeout(attemptCameraRecovery, 3000);
+            }
+        }
+
+        // Enhanced frame capture with HD quality optimization
+        async function captureFrame() {
+            if (!sessionActive) return;
+
+            // Check camera health before capturing
+            if (!cameraStream || video.readyState !== 4 || video.videoWidth === 0) {
+                console.log('Camera not ready, skipping frame capture');
+                if (!cameraRestartInProgress) {
+                    handleCameraDisconnect();
+                }
+                return;
+            }
+
+            try {
+                // Use the full native resolution of the camera
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                // High-quality rendering
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                // Draw with high quality
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Convert to blob with configurable quality
+                canvas.toBlob(async (blob) => {
+                    const formData = new FormData();
+                    formData.append('image', blob);
+                    
+                    // Log quality information for debugging
+                    console.log(`Frame captured: ${canvas.width}x${canvas.height}, Quality: ${currentQuality}, Size: ${(blob.size / 1024).toFixed(1)}KB`);
+                    
+                    try {
+                        const response = await fetch('/api/upload/', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const data = await response.json();
+                        if (data.status === 'success') {
+                            document.getElementById('count').textContent = data.processed_count;
+                            document.getElementById('totalFrames').textContent = data.frame_number;
+                        }
+                    } catch (error) {
+                        console.error('Upload failed (non-critical):', error);
+                        // Session continues despite upload failures
+                    }
+                }, 'image/jpeg', currentQuality);
+                
+            } catch (error) {
+                console.error('Frame capture error (non-critical):', error);
+                // Session continues despite capture errors
+            }
+        }
+
+        // Session control functions
         async function startSession() {
             try {
-                const response = await fetch('/api/start/', { method: 'POST' });
+                const testMode = document.getElementById('testMode').checked;
+                
+                // Ensure camera is working before starting session
+                if (!cameraStream || video.readyState !== 4) {
+                    const cameraReady = await startCamera();
+                    if (!cameraReady) {
+                        showError('Cannot start session: Camera not available');
+                        return;
+                    }
+                }
+                
+                const response = await fetch('/api/start/', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        test_mode: testMode
+                    })
+                });
+                
                 const data = await response.json();
                 
                 if (data.status === 'success') {
                     sessionActive = true;
                     updateUI();
-                    captureInterval = setInterval(captureFrame, 20000);
-                    setTimeout(captureFrame, 1000); // First capture immediately
+                    
+                    // Start periodic frame capture
+                    captureInterval = setInterval(captureFrame, currentCaptureInterval * 1000);
+                    
+                    // Initial capture
+                    setTimeout(captureFrame, 1000);
+                    
+                    document.getElementById('modeIndicator').textContent = testMode ? 'Test' : 'Real';
+                } else {
+                    showError('Failed to start session: ' + data.message);
                 }
             } catch (error) {
-                alert('Failed to start session');
+                showError('Failed to start session: ' + error.message);
             }
         }
 
@@ -184,22 +546,84 @@
                 const response = await fetch('/api/end/', { method: 'POST' });
                 const data = await response.json();
                 
+                // Stop session locally regardless of server response
                 sessionActive = false;
+                if (captureInterval) {
+                    clearInterval(captureInterval);
+                }
                 updateUI();
-                clearInterval(captureInterval);
-                alert('Session ended. Processed ' + data.processed_count + ' frames.');
+                
+                alert(`Session ended. Processed ${data.processed_count} frames out of ${data.total_frames} captured.`);
+                
             } catch (error) {
                 console.error('Failed to end session:', error);
+                // Fallback: stop session locally even if server communication fails
+                sessionActive = false;
+                if (captureInterval) {
+                    clearInterval(captureInterval);
+                }
+                updateUI();
+                showError('Session stopped locally. Server communication failed.');
+            }
+        }
+
+        async function updateConfig() {
+            try {
+                const interval = parseInt(document.getElementById('captureInterval').value);
+                const testMode = document.getElementById('testMode').checked;
+                const quality = parseFloat(document.getElementById('quality').value);
+                
+                // Validate interval
+                if (interval < 2 || interval > 60) {
+                    showError('Capture interval must be between 2 and 60 seconds');
+                    return;
+                }
+                
+                currentCaptureInterval = interval;
+                currentQuality = quality;
+                
+                const response = await fetch('/api/update_config/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        capture_interval: interval,
+                        test_mode: testMode,
+                        quality: quality
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // Update running interval if session is active
+                    if (sessionActive && captureInterval) {
+                        clearInterval(captureInterval);
+                        captureInterval = setInterval(captureFrame, currentCaptureInterval * 1000);
+                    }
+                    
+                    // Show success feedback
+                    const status = document.getElementById('status');
+                    const originalText = status.textContent;
+                    status.textContent = '✓ Configuration Updated!';
+                    setTimeout(() => {
+                        if (sessionActive) {
+                            status.textContent = `✅ Session Active - Auto-capturing every ${currentCaptureInterval}s`;
+                        }
+                    }, 2000);
+                }
+            } catch (error) {
+                showError('Failed to update config: ' + error.message);
             }
         }
 
         function updateUI() {
             const status = document.getElementById('status');
-            const startBtn = document.querySelector('.start-btn');
-            const endBtn = document.querySelector('.end-btn');
+            const startBtn = document.getElementById('startBtn');
+            const endBtn = document.getElementById('endBtn');
             
             if (sessionActive) {
-                status.textContent = '✅ Session Active - Auto-capturing every 10s';
+                status.textContent = `✅ Session Active - Auto-capturing every ${currentCaptureInterval}s`;
                 status.className = 'status active';
                 startBtn.disabled = true;
                 endBtn.disabled = false;
@@ -211,9 +635,45 @@
             }
         }
 
-        // Initialize
-        startCamera();
-        updateUI();
+        // Page visibility handling
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                console.log('Page hidden - session continues in background');
+            } else {
+                console.log('Page visible - checking camera health');
+                // Check camera when page becomes visible again
+                if (sessionActive && (!cameraStream || video.readyState !== 4)) {
+                    attemptCameraRecovery();
+                }
+            }
+        });
+
+        // Update resolution info periodically
+        setInterval(updateResolutionInfo, 5000);
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            if (captureInterval) {
+                clearInterval(captureInterval);
+            }
+        });
+
+        // Initialize application
+        async function initializeApp() {
+            await startCamera();
+            updateUI();
+            
+            // Set initial config values
+            document.getElementById('captureInterval').value = currentCaptureInterval;
+            document.getElementById('testMode').checked = false;
+            document.getElementById('quality').value = currentQuality;
+        }
+
+        // Start the application
+        initializeApp();
     </script>
 </body>
 </html>
